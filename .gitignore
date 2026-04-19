@@ -1,3 +1,9 @@
-FER/images/
+FER/
+models/
+venv/
+__pycache__/
+*.pyc
 
 
+models/*.keras
+FER/
