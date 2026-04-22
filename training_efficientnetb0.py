@@ -13,7 +13,7 @@ tf.random.set_seed(42)
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 # Import necessary modules
-from tensorflow.keras.applications import EfficientNetV2B2
+from tensorflow.keras.applications import EfficientNetB0 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Dense, BatchNormalization, Dropout, GlobalAveragePooling2D, Input, concatenate
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -24,31 +24,20 @@ from tensorflow.keras.losses import CategoricalCrossentropy
 from sklearn.utils.class_weight import compute_class_weight
 import os
 
-# Load EfficientNetV2B2 model and adapt for grayscale input
-input_shape = (260, 260, 3)  # EfficientNetV2B2 expects RGB input
+# Load EfficientNetB0 model and adapt for grayscale input
+input_shape = (224, 224, 3)  # EfficientNetB0 expects RGB input
 
 
-input_tensor = Input(shape=(260, 260, 1)) # Input per immagini grayscale
+input_tensor = Input(shape=(224, 224, 1)) # Input per immagini grayscale
 x = concatenate([input_tensor, input_tensor, input_tensor], axis=-1)
 
 # Caricamento del modello pre-addestrato privo del top Layer e adattamento per l'input a 3 canali (grayscale duplicato su 3 canali)
-base_model = EfficientNetV2B2(weights='imagenet', include_top=False, input_shape=input_shape)
+base_model = EfficientNetB0(weights='imagenet', include_top=False, input_shape=input_shape)
 x = base_model(x, training = False)  #Usa il modello base in modalità inference 
 
 # Global Average Pooling
 x = GlobalAveragePooling2D()(x)
-
-# Add Dense layers for classification
-#riduzione dei blocchi a 2 per evitare overfitting, dato che il dataset è relativamente piccolo e il modello è molto complesso
-x = Dense(256, activation ='relu')(x)
-x = BatchNormalization()(x)
-x = Dropout(0.3)(x)
-
-x = Dense(128, activation ='relu')(x)
-x = BatchNormalization()(x)
-x = Dropout(0.2)(x)
-
-# Output layer for 7 emotion classes
+x = Dropout(0.5)(x)  # Dropout per ridurre l'overfitting
 output_layer = Dense(7, activation ='softmax')(x)
 
 # Create the model
@@ -62,7 +51,7 @@ model.summary()
 #creazione di un path relativo per il dataset, in modo da poterlo eseguire su qualsiasi computer senza dover modificare il path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "FER", "images")
-MODEL_DIR = os.path.join(BASE_DIR, "models") #al fine del confronto tra modelli, è importante salvare i modelli in una cartella dedicata all'interno del progetto, in modo da poterli confrontare facilmente e mantenere il progetto organizzato
+MODEL_DIR = os.path.join(BASE_DIR, "models", "efficientnetb0") #al fine del confronto tra modelli, è importante salvare i modelli in una cartella dedicata all'interno del progetto, in modo da poterli confrontare facilmente e mantenere il progetto organizzato
 os.makedirs(MODEL_DIR, exist_ok=True) #creazione della cartella models qualora non non dovesse esistere già
 
 datagen_train = ImageDataGenerator(
@@ -83,7 +72,7 @@ datagen_test = ImageDataGenerator()
 # Train set
 train_set = datagen_train.flow_from_directory(
     os.path.join(DATA_DIR, "train"),
-    target_size=(260, 260),
+    target_size=(224, 224),
     color_mode="grayscale",
     batch_size=32,
     class_mode='categorical',
@@ -94,7 +83,7 @@ train_set = datagen_train.flow_from_directory(
 # Validation set
 validation_set = datagen_validation.flow_from_directory(
     os.path.join(DATA_DIR, "validation"),
-    target_size=(260, 260),
+    target_size=(224, 224),
     color_mode="grayscale",
     batch_size=32,
     class_mode='categorical',
@@ -105,7 +94,7 @@ validation_set = datagen_validation.flow_from_directory(
 # Test set
 test_set = datagen_test.flow_from_directory(
     os.path.join(DATA_DIR, "test"),
-    target_size=(260, 260),
+    target_size=(224, 224),
     color_mode="grayscale",
     batch_size=32,
     class_mode='categorical',
@@ -131,16 +120,10 @@ print("Class weights (clipped):", class_weight_dict)
 
 # Callbacks FASE 1
 checkpoint = ModelCheckpoint(
-    os.path.join(MODEL_DIR, "best_model_v2b2.keras"),
+    os.path.join(MODEL_DIR, "best_model_b0.keras"),
     monitor='val_accuracy', verbose=1, save_best_only=True, mode='max'
 )
-early_stopping = EarlyStopping(
-    monitor='val_loss', patience=10, verbose=1, restore_best_weights=True
-)
-reduce_learningrate = ReduceLROnPlateau(
-    monitor='val_loss', factor=0.2, patience=5, verbose=1, min_delta=0.0001
-)
-callbacks_list = [early_stopping, checkpoint, reduce_learningrate]
+
 
 # Testing (divisione del testing in 2 fasi distinte)
 
@@ -148,7 +131,7 @@ callbacks_list = [early_stopping, checkpoint, reduce_learningrate]
 
 base_model.trainable = False  # Congela i pesi del modello base
 model.compile(
-    optimizer = Adam(learning_rate = 0.0005),
+    optimizer = Adam(learning_rate = 1e-3),  # Adam con learning rate più alto per la fase di training della head
     loss = CategoricalCrossentropy(label_smoothing=0.06), #l'uso del label smoothing aiuta a prevenire l'overfitting, specialmente in un dataset relativamente piccolo e sbilanciato come il FER
     metrics = ['accuracy']
 )
@@ -160,8 +143,8 @@ start_fase1 = time.time()
 history_head = model.fit(
     train_set,
     validation_data = validation_set,
-    epochs = 30,
-    callbacks= callbacks_list,
+    epochs = 3, 
+    callbacks= [checkpoint],
     class_weight = class_weight_dict
 )
 
@@ -171,15 +154,15 @@ print(f"Tempo impiegato per FASE 1: {(end_fase1 - start_fase1)/60:.1f} minuti")
 #FASE 2: Fine-tuning del modello completo
 #Callbacks FASE 2 
 checkpoint_ft = ModelCheckpoint(
-    os.path.join(MODEL_DIR, "best_model_v2b2_ft.keras"),  # file separato
+    os.path.join(MODEL_DIR, "best_model_b0_ft.keras"),  # file separato
     monitor='val_accuracy', verbose=1, save_best_only=True, mode='max'
 )
 early_stopping_ft = EarlyStopping(
-    monitor='val_loss', patience=7, verbose=1, restore_best_weights=True
+    monitor='val_loss', patience=5, verbose=1, restore_best_weights=True
 )
 reduce_lr_ft = ReduceLROnPlateau(
     monitor='val_loss', factor=0.3,
-    patience=5,        
+    patience=2,        
     verbose=1,
     min_delta=0.001    
 )
@@ -191,8 +174,9 @@ print("\n === FASE 2: Fine-Tuning ===")
 start_fase2 = time.time()
 
 base_model.trainable = True
-for layer in base_model.layers[:-40]: #aumento dei layer sbloccati a 20 date le dimensioni ridotte del dataset
-    layer.trainable = False
+for layer in base_model.layers:
+    if isinstance(layer, tf.keras.layers.BatchNormalization):
+        layer.trainable = False
 
 model.compile(
     optimizer=AdamW(learning_rate=0.00003, weight_decay=0.0001),  #AdamW con weight decay per il fine-tuning
@@ -202,7 +186,7 @@ model.compile(
 history_ft = model.fit(
     train_set,
     validation_data=validation_set,
-    epochs=45,
+    epochs=15,
     callbacks=callbacks_ft,    
     class_weight=class_weight_dict
 )
@@ -290,7 +274,7 @@ history_combined = {
     "test_accuracy": float(test_accuracy)
 }
 
-json_path = os.path.join(MODEL_DIR, f"history_v2b2_{timestamp}.json")
+json_path = os.path.join(MODEL_DIR, f"history_b0_{timestamp}.json")
 with open(json_path, "w") as f:
     json.dump(history_combined, f, indent=4)
 print(f"History salvata in: {json_path}")
@@ -310,7 +294,7 @@ fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 axes[0].plot(epochs_total, acc_1, label='Train Accuracy')
 axes[0].plot(epochs_total, val_acc_1, label='Val Accuracy')
 axes[0].axvline(x=phase2_start, color='gray', linestyle='--', label='Fine-tuning start')
-axes[0].set_title('Accuracy - EfficientNetV2B2')
+axes[0].set_title('Accuracy - EfficientNetB0')
 axes[0].set_xlabel('Epoch')
 axes[0].set_ylabel('Accuracy')
 axes[0].legend()
@@ -319,12 +303,12 @@ axes[0].legend()
 axes[1].plot(epochs_total, loss_1, label='Train Loss')
 axes[1].plot(epochs_total, val_loss_1, label='Val Loss')
 axes[1].axvline(x=phase2_start, color='gray', linestyle='--', label='Fine-tuning start')
-axes[1].set_title('Loss - EfficientNetV2B2')
+axes[1].set_title('Loss - EfficientNetB0')
 axes[1].set_xlabel('Epoch')
 axes[1].set_ylabel('Loss')
 axes[1].legend()
 
 plt.tight_layout()
-plot_path = os.path.join(MODEL_DIR, f"training_plot_v2b2_{timestamp}.png")
+plot_path = os.path.join(MODEL_DIR, f"training_plot_b0_{timestamp}.png")
 plt.savefig(plot_path)
 print(f"Grafico salvato in: {plot_path}")

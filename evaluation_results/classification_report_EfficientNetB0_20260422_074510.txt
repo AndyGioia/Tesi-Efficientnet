@@ -1,0 +1,18 @@
+Modello: EfficientNetB0
+Data: 20260422_074510
+Test Accuracy: 68.04%
+Test Loss: 1.0437
+
+              precision    recall  f1-score   support
+
+       angry     0.5657    0.5833    0.5744       192
+     disgust     0.6190    0.5909    0.6047        22
+        fear     0.5253    0.4089    0.4598       203
+       happy     0.8898    0.8630    0.8762       365
+     neutral     0.6466    0.7531    0.6958       243
+         sad     0.5929    0.5903    0.5916       227
+    surprise     0.7018    0.7547    0.7273       159
+
+    accuracy                         0.6804      1411
+   macro avg     0.6487    0.6492    0.6471      1411
+weighted avg     0.6782    0.6804    0.6774      1411

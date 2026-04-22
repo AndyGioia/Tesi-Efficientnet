@@ -1,0 +1,251 @@
+[
+  {
+    "name": "EfficientNetV2B2",
+    "path": "/mnt/i/TESI/Tesi-Efficientnet/models/efficientnetb2v2/best_model_v2b2_ft.keras",
+    "color": "#01696f",
+    "metrics": {
+      "accuracy": 0.7002,
+      "balanced_accuracy": 0.6957,
+      "top2_accuracy": 0.8618,
+      "top3_accuracy": 0.9327,
+      "macro_precision": 0.6632,
+      "macro_recall": 0.6957,
+      "macro_f1": 0.6729,
+      "weighted_precision": 0.6964,
+      "weighted_recall": 0.7002,
+      "weighted_f1": 0.6938,
+      "auc_macro": 0.9323,
+      "auc_weighted": 0.9301,
+      "cross_entropy_loss": 0.8246,
+      "cohen_kappa": 0.6371,
+      "matthews_mcc": 0.6387,
+      "per_class": {
+        "angry": {
+          "precision": 0.5689,
+          "recall": 0.6667,
+          "f1-score": 0.6139,
+          "support": 192.0,
+          "auc": 0.9132
+        },
+        "disgust": {
+          "precision": 0.6,
+          "recall": 0.8182,
+          "f1-score": 0.6923,
+          "support": 22.0,
+          "auc": 0.9871
+        },
+        "fear": {
+          "precision": 0.5556,
+          "recall": 0.3695,
+          "f1-score": 0.4438,
+          "support": 203.0,
+          "auc": 0.8644
+        },
+        "happy": {
+          "precision": 0.8874,
+          "recall": 0.8849,
+          "f1-score": 0.8861,
+          "support": 365.0,
+          "auc": 0.9762
+        },
+        "neutral": {
+          "precision": 0.6821,
+          "recall": 0.786,
+          "f1-score": 0.7304,
+          "support": 243.0,
+          "auc": 0.9453
+        },
+        "sad": {
+          "precision": 0.639,
+          "recall": 0.5771,
+          "f1-score": 0.6065,
+          "support": 227.0,
+          "auc": 0.8998
+        },
+        "surprise": {
+          "precision": 0.7093,
+          "recall": 0.7673,
+          "f1-score": 0.7372,
+          "support": 159.0,
+          "auc": 0.9403
+        }
+      }
+    },
+    "test_loss": 0.9892,
+    "model_size_mb": 100.51,
+    "total_params": 8779237,
+    "latency": {
+      "mean_ms": 507.5,
+      "median_ms": 489.3,
+      "p95_ms": 588.6,
+      "min_ms": 442.8,
+      "max_ms": 650.5
+    }
+  },
+  {
+    "name": "EfficientNetB0",
+    "path": "/mnt/i/TESI/Tesi-Efficientnet/models/efficientnetb0/best_model_b0_ft.keras",
+    "color": "#fdb462",
+    "metrics": {
+      "accuracy": 0.6804,
+      "balanced_accuracy": 0.6492,
+      "top2_accuracy": 0.8512,
+      "top3_accuracy": 0.9284,
+      "macro_precision": 0.6487,
+      "macro_recall": 0.6492,
+      "macro_f1": 0.6471,
+      "weighted_precision": 0.6782,
+      "weighted_recall": 0.6804,
+      "weighted_f1": 0.6774,
+      "auc_macro": 0.9224,
+      "auc_weighted": 0.9191,
+      "cross_entropy_loss": 0.8956,
+      "cohen_kappa": 0.6129,
+      "matthews_mcc": 0.6136,
+      "per_class": {
+        "angry": {
+          "precision": 0.5657,
+          "recall": 0.5833,
+          "f1-score": 0.5744,
+          "support": 192.0,
+          "auc": 0.8897
+        },
+        "disgust": {
+          "precision": 0.619,
+          "recall": 0.5909,
+          "f1-score": 0.6047,
+          "support": 22.0,
+          "auc": 0.9872
+        },
+        "fear": {
+          "precision": 0.5253,
+          "recall": 0.4089,
+          "f1-score": 0.4598,
+          "support": 203.0,
+          "auc": 0.8506
+        },
+        "happy": {
+          "precision": 0.8898,
+          "recall": 0.863,
+          "f1-score": 0.8762,
+          "support": 365.0,
+          "auc": 0.9732
+        },
+        "neutral": {
+          "precision": 0.6466,
+          "recall": 0.7531,
+          "f1-score": 0.6958,
+          "support": 243.0,
+          "auc": 0.921
+        },
+        "sad": {
+          "precision": 0.5929,
+          "recall": 0.5903,
+          "f1-score": 0.5916,
+          "support": 227.0,
+          "auc": 0.8959
+        },
+        "surprise": {
+          "precision": 0.7018,
+          "recall": 0.7547,
+          "f1-score": 0.7273,
+          "support": 159.0,
+          "auc": 0.9393
+        }
+      }
+    },
+    "test_loss": 1.0437,
+    "model_size_mb": 46.7,
+    "total_params": 4058538,
+    "latency": {
+      "mean_ms": 331.3,
+      "median_ms": 331.9,
+      "p95_ms": 360.4,
+      "min_ms": 297.0,
+      "max_ms": 506.7
+    }
+  },
+  {
+    "name": "MobileNetV3Small",
+    "path": "/mnt/i/TESI/Tesi-Efficientnet/models/mobilenetv3small/best_model_mobilenetv3small_ft.keras",
+    "color": "#e377c2",
+    "metrics": {
+      "accuracy": 0.6471,
+      "balanced_accuracy": 0.6345,
+      "top2_accuracy": 0.8306,
+      "top3_accuracy": 0.9064,
+      "macro_precision": 0.6265,
+      "macro_recall": 0.6345,
+      "macro_f1": 0.621,
+      "weighted_precision": 0.6564,
+      "weighted_recall": 0.6471,
+      "weighted_f1": 0.6424,
+      "auc_macro": 0.9072,
+      "auc_weighted": 0.9052,
+      "cross_entropy_loss": 0.9795,
+      "cohen_kappa": 0.5738,
+      "matthews_mcc": 0.5768,
+      "per_class": {
+        "angry": {
+          "precision": 0.4715,
+          "recall": 0.6458,
+          "f1-score": 0.5451,
+          "support": 192.0,
+          "auc": 0.8676
+        },
+        "disgust": {
+          "precision": 0.625,
+          "recall": 0.6818,
+          "f1-score": 0.6522,
+          "support": 22.0,
+          "auc": 0.9729
+        },
+        "fear": {
+          "precision": 0.5631,
+          "recall": 0.2857,
+          "f1-score": 0.3791,
+          "support": 203.0,
+          "auc": 0.8213
+        },
+        "happy": {
+          "precision": 0.8912,
+          "recall": 0.8301,
+          "f1-score": 0.8596,
+          "support": 365.0,
+          "auc": 0.9682
+        },
+        "neutral": {
+          "precision": 0.6434,
+          "recall": 0.6461,
+          "f1-score": 0.6448,
+          "support": 243.0,
+          "auc": 0.9202
+        },
+        "sad": {
+          "precision": 0.5373,
+          "recall": 0.6035,
+          "f1-score": 0.5685,
+          "support": 227.0,
+          "auc": 0.872
+        },
+        "surprise": {
+          "precision": 0.6538,
+          "recall": 0.7484,
+          "f1-score": 0.6979,
+          "support": 159.0,
+          "auc": 0.928
+        }
+      }
+    },
+    "test_loss": 1.115,
+    "model_size_mb": 11.21,
+    "total_params": 943159,
+    "latency": {
+      "mean_ms": 167.4,
+      "median_ms": 167.0,
+      "p95_ms": 181.8,
+      "min_ms": 154.6,
+      "max_ms": 201.5
+    }
+  }
+]
