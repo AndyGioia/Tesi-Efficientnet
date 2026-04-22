@@ -9,3 +9,5 @@ models/*.keras
 FER/
 evaluation_results/
 evaluation_results/
+.idea/
+.vscode/
