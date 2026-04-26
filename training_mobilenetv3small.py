@@ -128,11 +128,11 @@ class_weight_dict = get_class_weights(train_set)
 class_weight_dict = {k: min(v, 4.0) for k, v in class_weight_dict.items()} # Limita il peso massimo a 4.0 per evitare instabilità durante l'addestramento
 print("Class weights (clipped):", class_weight_dict)
 
-# Testing (divisione del testing in 2 fasi distinte)
+#Testing (divisione del testing in 2 fasi distinte)
 
 #FASE 1: Training della head
 
-# Callbacks FASE 1
+#Callbacks FASE 1
 checkpoint = ModelCheckpoint(
     os.path.join(MODEL_DIR, "best_model_mobilenetv3small.keras"),
     monitor='val_accuracy', verbose=1, save_best_only=True, mode='max'
@@ -197,7 +197,7 @@ model.compile(
 history_ft = model.fit(
     train_set,
     validation_data=validation_set,
-    epochs=25, #25 epoch per una kigliore ottimizzazione
+    epochs=25, #25 epoch per una migliore ottimizzazione
     callbacks=callbacks_ft,    
     class_weight=class_weight_dict
 )
