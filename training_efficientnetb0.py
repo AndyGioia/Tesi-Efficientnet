@@ -1,4 +1,13 @@
-# Fixing the seed for random number generators
+"""
+Addestra il modello per il riconoscimento delle emozioni facciali EfficientNetB0, pre-addestrato su ImageNet, sul dataset FER-2013
+il dataset FER comprende le 7 classi di Ekman (angry, disgust, fear, happy, neutral, sad e surprise)
+al fine dell'addestramento il modello è stato adattato per ricevere l'input grayscale del FER tramite la duplicazione dei canali
+L'addestramento avviene tramite Transfer Learning a due fasi:
+- Fase 1 (Head Training) in questa afse viene addestrato solo il classificatore finale, lasciando il backbone del modello congelato
+- Fase 2 (Fine Tuning) viene scongelato il backbone e addestrato a un learning rate decisamente minore rispetto alla head
+addestramento molto simile a quello del modello B2V2 salvo differenze negli input dovute alla natura del modello B0 (input size minore e minor numero di parametri rispetto al B2V2)
+"""
+#Configurazione degli import
 import json
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -7,12 +16,12 @@ import random
 import time
 import seaborn as sns
 import tensorflow as tf
+#fissare i seed di Numpy, random e tensorflow garantisce risultati riproducibili tra run successive sul medesimo hardware
 np.random.seed(42)
 random.seed(42)
 tf.random.set_seed(42)
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-# Import necessary modules
 from tensorflow.keras.applications import EfficientNetB0 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Dense, BatchNormalization, Dropout, GlobalAveragePooling2D, Input, concatenate
@@ -24,29 +33,26 @@ from tensorflow.keras.losses import CategoricalCrossentropy
 from sklearn.utils.class_weight import compute_class_weight
 import os
 
-# Load EfficientNetB0 model and adapt for grayscale input
-input_shape = (224, 224, 3)  # EfficientNetB0 expects RGB input
+#Caricamento del modello e adattamento all'input grayscale
+input_shape = (224, 224, 3)  
 
 
-input_tensor = Input(shape=(224, 224, 1)) # Input per immagini grayscale
+input_tensor = Input(shape=(224, 224, 1)) #Input per immagini grayscale
 x = concatenate([input_tensor, input_tensor, input_tensor], axis=-1)
 
-# Caricamento del modello pre-addestrato privo del top Layer e adattamento per l'input a 3 canali (grayscale duplicato su 3 canali)
+#Caricamento del modello pre-addestrato privo del top Layer e adattamento per l'input a 3 canali (grayscale duplicato su 3 canali)
 base_model = EfficientNetB0(weights='imagenet', include_top=False, input_shape=input_shape)
 x = base_model(x, training = False)  #Usa il modello base in modalità inference 
 
 # Global Average Pooling
 x = GlobalAveragePooling2D()(x)
-x = Dropout(0.5)(x)  # Dropout per ridurre l'overfitting
+x = Dropout(0.5)(x)  #Dropout per ridurre l'overfitting
 output_layer = Dense(7, activation ='softmax')(x)
 
-# Create the model
 model = Model(inputs=input_tensor, outputs=output_layer)
-
-# Model Summary
 model.summary()
 
-# Data Augmentation
+#Data Augmentation
 
 #creazione di un path relativo per il dataset, in modo da poterlo eseguire su qualsiasi computer senza dover modificare il path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -69,7 +75,7 @@ datagen_validation = ImageDataGenerator()
 
 datagen_test = ImageDataGenerator()
 
-# Train set
+#Train set
 train_set = datagen_train.flow_from_directory(
     os.path.join(DATA_DIR, "train"),
     target_size=(224, 224),
@@ -80,7 +86,7 @@ train_set = datagen_train.flow_from_directory(
     shuffle=True
 )
 
-# Validation set
+#Validation set
 validation_set = datagen_validation.flow_from_directory(
     os.path.join(DATA_DIR, "validation"),
     target_size=(224, 224),
@@ -91,7 +97,7 @@ validation_set = datagen_validation.flow_from_directory(
     shuffle=False
 )
 
-# Test set
+#Test set
 test_set = datagen_test.flow_from_directory(
     os.path.join(DATA_DIR, "test"),
     target_size=(224, 224),
@@ -102,7 +108,7 @@ test_set = datagen_test.flow_from_directory(
     shuffle=False
 )
 
-# Compute class weights dynamically
+#Creazione e bilanciamento dei pesi
 def get_class_weights(generator):
     class_indices = generator.class_indices
     num_classes = len(class_indices)
@@ -118,18 +124,17 @@ class_weight_dict = get_class_weights(train_set)
 class_weight_dict = {k: min(v, 4.0) for k, v in class_weight_dict.items()} # Limita il peso massimo a 4.0 per evitare instabilità durante l'addestramento
 print("Class weights (clipped):", class_weight_dict)
 
+# Testing (divisione del testing in 2 fasi distinte)
+
+#FASE 1: Training della head
+
 # Callbacks FASE 1
 checkpoint = ModelCheckpoint(
     os.path.join(MODEL_DIR, "best_model_b0.keras"),
     monitor='val_accuracy', verbose=1, save_best_only=True, mode='max'
 )
 
-
-# Testing (divisione del testing in 2 fasi distinte)
-
-#FASE 1: Training della head
-
-base_model.trainable = False  # Congela i pesi del modello base
+base_model.trainable = False  #Congela i pesi del modello base
 model.compile(
     optimizer = Adam(learning_rate = 1e-3),  # Adam con learning rate più alto per la fase di training della head
     loss = CategoricalCrossentropy(label_smoothing=0.06), #l'uso del label smoothing aiuta a prevenire l'overfitting, specialmente in un dataset relativamente piccolo e sbilanciato come il FER
@@ -151,7 +156,9 @@ history_head = model.fit(
 end_fase1 = time.time()
 print(f"Tempo impiegato per FASE 1: {(end_fase1 - start_fase1)/60:.1f} minuti")
 
+
 #FASE 2: Fine-tuning del modello completo
+
 #Callbacks FASE 2 
 checkpoint_ft = ModelCheckpoint(
     os.path.join(MODEL_DIR, "best_model_b0_ft.keras"),  # file separato
@@ -196,6 +203,7 @@ end_total = time.time()
 print(f"Tempo impiegato per FASE 2: {(end_fase2 - start_fase2)/60:.1f} minuti")
 print(f"Tempo totale di addestramento: {(end_total - start_total)/60:.1f} minuti")
 
+
 #Valutazione Finale sul TEST SET
 print("\n === VALUTAZIONE FINALE SUL TEST SET ===")
 test_loss, test_accuracy = model.evaluate(test_set)
@@ -205,7 +213,6 @@ print(f"Test Accuracy: {test_accuracy:.4f}")
 #Confusion Matrix e Classification Report
 from sklearn.metrics import classification_report, confusion_matrix
 
-
 class_names = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 print("\n === CONFUSION MATRIX E METRICHE PER CLASSE ===")
@@ -214,11 +221,11 @@ y_pred_probs = model.predict(test_set, verbose=1)
 y_pred = np.argmax(y_pred_probs, axis=1)
 y_true = test_set.classes
 
-# Classification report
+#Classification report
 report = classification_report(y_true, y_pred, target_names=class_names, digits=4)
 print(report)
 
-# Salva report in txt
+#Salva report in txt
 report_path = os.path.join(MODEL_DIR, f"classification_report_{timestamp}.txt")
 with open(report_path, "w") as f:
     f.write(f"Test Accuracy: {test_accuracy:.4f}\n")
@@ -226,7 +233,7 @@ with open(report_path, "w") as f:
     f.write(report)
 print(f"Report salvato in: {report_path}")
 
-# Confusion matrix assoluta
+#Confusion matrix assoluta
 cm = confusion_matrix(y_true, y_pred)
 fig_cm, axes_cm = plt.subplots(1, 2, figsize=(16, 6))
 
@@ -238,7 +245,7 @@ axes_cm[0].set_ylabel('True Label')
 axes_cm[0].set_xlabel('Predicted Label')
 axes_cm[0].tick_params(axis='x', rotation=45)
 
-# Confusion matrix normalizzata (recall per classe)
+#Confusion matrix normalizzata (recall per classe)
 cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 sns.heatmap(cm_norm, annot=True, fmt='.2f', ax=axes_cm[1],
             xticklabels=class_names, yticklabels=class_names,
@@ -254,7 +261,7 @@ plt.savefig(cm_path, dpi=150)
 print(f"Confusion matrix salvata in: {cm_path}")
 
 
-# Salvataggio della history di addestramento in un JSON file, in modo da poterla analizzare successivamente
+#Salvataggio della history di addestramento in un JSON file, in modo da poterla analizzare successivamente
 
 
 history_combined = {
@@ -279,7 +286,7 @@ with open(json_path, "w") as f:
     json.dump(history_combined, f, indent=4)
 print(f"History salvata in: {json_path}")
 
-# --- Grafici ---
+#Grafici
 acc_1 = history_head.history['accuracy'] + history_ft.history['accuracy']
 val_acc_1 = history_head.history['val_accuracy'] + history_ft.history['val_accuracy']
 loss_1 = history_head.history['loss'] + history_ft.history['loss']
@@ -290,7 +297,7 @@ phase2_start = len(history_head.history['accuracy'])
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-# Accuracy
+#Accuracy
 axes[0].plot(epochs_total, acc_1, label='Train Accuracy')
 axes[0].plot(epochs_total, val_acc_1, label='Val Accuracy')
 axes[0].axvline(x=phase2_start, color='gray', linestyle='--', label='Fine-tuning start')
@@ -299,7 +306,7 @@ axes[0].set_xlabel('Epoch')
 axes[0].set_ylabel('Accuracy')
 axes[0].legend()
 
-# Loss
+#Loss
 axes[1].plot(epochs_total, loss_1, label='Train Loss')
 axes[1].plot(epochs_total, val_loss_1, label='Val Loss')
 axes[1].axvline(x=phase2_start, color='gray', linestyle='--', label='Fine-tuning start')

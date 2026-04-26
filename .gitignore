@@ -11,3 +11,9 @@ evaluation_results/
 evaluation_results/
 .idea/
 .vscode/
+
+# Modelli TFLite convertiti e SavedModel intermedi
+tflite_models/
+
+# Risultati valutazione TFLite
+tflite_evaluation/
