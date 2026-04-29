@@ -9,9 +9,17 @@ la strategia di training è la stessa dell'EfficientNetB2V2 e B0 a differenza de
 Epochs Fase 2: 25 (vs 15 di B0 e V2B2)
 a 15 epoch il ReduceLROnPlateau non era ancora scattato e la val_accuracy cresceva ancora lentamente 
 estendere a 25 epoch ha permesso al LR decay di attivarsi (epoch 16) e completare l'ottimizzazione
-architettura Head: GlobalAveragePooling2D → Dense(1024, relu) → BatchNorm → Dropout(0.5) → Dense(7, softmax)
-Il layer Dense(1024) è stato aggiunto rispetto alla versione base per incrementare la capacità del modello
-e avvicinare il numero di parametri (~1.53M) a quello del paper A-MobileNet (~1.5M) usato come confronto.
+- [SimAM] Aggiunto SimAM (Simple, Parameter-Free Attention Module, Yang et al. ICML 2021)
+  dopo l'output del base_model e prima del GlobalAveragePooling2D.
+  SimAM calcola pesi di attenzione 3D (spaziali + canale) senza aggiungere parametri al modello.
+- [HEAD] Head ridotta: Dense(1024) → Dense(256) con Dropout(0.3) aggiunto dopo il GlobalAveragePooling2D.
+  Razionale: Dense(1024) costituiva ~590K parametri (~38% del modello totale), causando
+  dispersione del gradiente. Dense(256) riduce i parametri totali da ~1.54M a ~1.09M.
+  Epochs Fase 2: 40 con EarlyStopping (coerente con baseline per confronto equo).
+- [FIX] La valutazione finale ora carica esplicitamente best_model_mobilenetv3small_ft.keras
+  per garantire che il test sia eseguito sul modello migliore per val_accuracy
+  (fix al conflitto EarlyStopping/ModelCheckpoint che monitorano metriche diverse).
+
 """
 #Configurazione degli Inport
 import json
@@ -29,19 +37,42 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 from tensorflow.keras.applications import MobileNetV3Small
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Dense, BatchNormalization, Dropout, GlobalAveragePooling2D, Input, concatenate
+from tensorflow.keras.layers import Dense, BatchNormalization, Dropout, GlobalAveragePooling2D, Input, concatenate, Layer
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers import AdamW
 from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.models import load_model
 from sklearn.utils.class_weight import compute_class_weight
 import os
 
+class SimAM(Layer):
+    """
+    Applica attenzione 3D (spaziale + canale) senza parametri aggiuntivi.
+    Calcola l'energia di ogni neurone rispetto ai suoi vicini spaziali
+    e ne scala l'attivazione con una sigmoide inversa.
+    e_lambda: termine di regolarizzazione per evitare divisione per zero.
+    """
+    def __init__(self, e_lambda = 1e-4, **kwargs):
+        super().__init__(**kwargs)
+        self.e_lambda = e_lambda
+    
+    def call(self, x):
+        n = tf.cast(tf.shape(x)[1] * tf.shape(x)[2], tf.float32) - 1.0 # Numero di neuroni vicini (escluso il neurone stesso)
+        d = tf.square(x - tf.reduce_mean(x, axis = [1, 2], keepdims = True)) # Distanza al quadrato del neurone rispetto alla media dei vicini
+        v = tf.reduce_sum(d, axis = [1, 2], keepdims = True) / n # Energia media dei vicini
+        E_inv = d / (4.0 * (v + self.e_lambda)) + 0.5 # Energia normalizzata con regolarizzazione
+        return x * tf.sigmoid(E_inv) # Scala l'attivazione del neurone con la sigmoide inversa dell'energia
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({"e_lambda": self.e_lambda})
+        return config
+
+
 #Caricamento del modello e adattamento a input grayscale
-input_shape = (224, 224, 3)  #MobileNetV3Small si aspetta RGB input
-
-
+input_shape = (224, 224, 3)  #MobileNetV3Small si aspetta RGB input, ma il FER è grayscale (1 canale)
 input_tensor = Input(shape=(224, 224, 1)) #Input per immagini grayscale
 x = concatenate([input_tensor, input_tensor, input_tensor], axis=-1)
 
@@ -50,25 +81,30 @@ base_model = MobileNetV3Small(weights='imagenet', include_top=False, input_shape
 x = base_model(x, training = False)  #Usa il modello base in modalità inference
 print("MobileNetV3Small output shape:", base_model.output_shape) 
 
+#inserimento del modulo di attenzione SimAM
+x = SimAM(e_lambda = 1e-4, name = "SimAM")(x)
+
 #Global Average Pooling
 x = GlobalAveragePooling2D()(x)
-x = Dense(1024, activation = 'relu')(x) #Layer Danse aggiuntivo per portare i parametri a 1.3M
-x = BatchNormalization()(x) #Normalizzazione per stabilizzare il training della Head
 x = Dropout(0.3)(x) # Dropout per ridurre l'overfitting dropout meno aggressivo
+x = Dense(256, activation = 'relu')(x) #Layer ridotto da 1024 a 256 -  circa 1M di parametri
+x = BatchNormalization()(x) #Normalizzazione per stabilizzare il training della Head
+x = Dropout(0.4)(x) # Dropout più aggressivo prima del layer finale per prevenire overfitting
 output_layer = Dense(7, activation ='softmax')(x)
 
 #Create the model
 model = Model(inputs=input_tensor, outputs=output_layer)
 model.summary()
 
-#Data Augmentation
+
 
 #creazione di un path relativo per il dataset, in modo da poterlo eseguire su qualsiasi computer senza dover modificare il path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "FER", "images")
-MODEL_DIR = os.path.join(BASE_DIR, "models", "mobilenetv3small") #al fine del confronto tra modelli, è importante salvare i modelli in una cartella dedicata all'interno del progetto, in modo da poterli confrontare facilmente e mantenere il progetto organizzato
+MODEL_DIR = os.path.join(BASE_DIR, "models", "mobilenetv3small_v2") #al fine del confronto tra modelli, è importante salvare i modelli in una cartella dedicata all'interno del progetto, in modo da poterli confrontare facilmente e mantenere il progetto organizzato
 os.makedirs(MODEL_DIR, exist_ok=True) #creazione della cartella models qualora non non dovesse esistere già
 
+#Data Augmentation
 datagen_train = ImageDataGenerator(
     horizontal_flip=True,
     rotation_range=25,
@@ -119,15 +155,9 @@ test_set = datagen_test.flow_from_directory(
 
 #Compute class weights dynamically
 def get_class_weights(generator):
-    class_indices = generator.class_indices
-    num_classes = len(class_indices)
-
-    class_weights = compute_class_weight(
-        class_weight='balanced',
-        classes=np.arange(num_classes),
-        y=generator.classes
-    )
-    return dict(enumerate(class_weights))
+    n = len(generator.class_indices)
+    w = compute_class_weight("balanced", classes = np.arange(n), y = generator.classes)
+    return dict(enumerate(w))
 
 class_weight_dict = get_class_weights(train_set)
 class_weight_dict = {k: min(v, 4.0) for k, v in class_weight_dict.items()} # Limita il peso massimo a 4.0 per evitare instabilità durante l'addestramento
@@ -215,7 +245,9 @@ print(f"Tempo totale di addestramento: {(end_total - start_total)/60:.1f} minuti
 
 #Valutazione Finale sul TEST SET
 print("\n === VALUTAZIONE FINALE SUL TEST SET ===")
-test_loss, test_accuracy = model.evaluate(test_set)
+#Caricamento del modello migliore per il test finale
+best_model = load_model(os.path.join(MODEL_DIR, "best_model_mobilenetv3small_ft.keras"), custom_objects={"SimAM": SimAM})
+test_loss, test_accuracy = best_model.evaluate(test_set)
 print(f"Test Loss: {test_loss:.4f}")
 print(f"Test Accuracy: {test_accuracy:.4f}")
 
@@ -227,7 +259,7 @@ class_names = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise'
 
 print("\n === CONFUSION MATRIX E METRICHE PER CLASSE ===")
 test_set.reset()
-y_pred_probs = model.predict(test_set, verbose=1)
+y_pred_probs = best_model.predict(test_set, verbose=1)
 y_pred = np.argmax(y_pred_probs, axis=1)
 y_true = test_set.classes
 
@@ -327,3 +359,4 @@ plt.tight_layout()
 plot_path = os.path.join(MODEL_DIR, f"training_plot_mobilenetv3small_{timestamp}.png")
 plt.savefig(plot_path)
 print(f"Grafico salvato in: {plot_path}")
+

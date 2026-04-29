@@ -46,7 +46,7 @@ x = base_model(x, training = False)  #Usa il modello base in modalità inference
 
 # Global Average Pooling
 x = GlobalAveragePooling2D()(x)
-x = Dropout(0.5)(x)  #Dropout per ridurre l'overfitting
+x = Dropout(0.3)(x)  #Dropout per ridurre l'overfitting
 output_layer = Dense(7, activation ='softmax')(x)
 
 model = Model(inputs=input_tensor, outputs=output_layer)
@@ -193,7 +193,7 @@ model.compile(
 history_ft = model.fit(
     train_set,
     validation_data=validation_set,
-    epochs=15,
+    epochs=40, #aumento delle epoche per il fine-tuning, con early stopping per prevenire overfitting
     callbacks=callbacks_ft,    
     class_weight=class_weight_dict
 )

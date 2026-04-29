@@ -33,8 +33,8 @@ TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 #accuracy originale del keras per riferimento
 KERAS_ACCURACY = {
     "EfficientNetV2B2": 70.02,
-    "EfficientNetB0": 68.46,
-    "MobileNetV3Small": 64.99
+    "EfficientNetB0": 69.88,
+    "MobileNetV3Small": 67.61
 }
 
 MODELS = [
