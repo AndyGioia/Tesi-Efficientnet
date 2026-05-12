@@ -16,30 +16,30 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 #Configurazione
 BASE_DIR = "/mnt/i/TESI/Tesi-Efficientnet"
-OUTPUT_DIR = os.path.join(BASE_DIR, "tflite_models")
+OUTPUT_DIR = os.path.join(BASE_DIR, "tflite_models_ferplus")
 os.makedirs(OUTPUT_DIR, exist_ok = True)
 
 #Definizione dei modelli e le loro rispettive configurazioni
 MODELS = [
     {
         "name": "EfficientNetV2B2",
-        "keras_path": os.path.join(BASE_DIR, "models", "efficientnetb2v2", "best_model_v2b2_ft.keras"),
+        "keras_path": os.path.join(BASE_DIR, "models", "efficientnetb2v2_ferplus", "best_model_v2b2_ferplus_ft.keras"),
         "img_size": 260, #dimensione input nativa del backbone
-        "expected_keras_acc": 70.02, #valore di riferimento della test accuracy del modello
+        "expected_keras_acc": 81.81, #valore di riferimento della test accuracy del modello
     },
 
     {
         "name": "EfficientNetB0",
-        "keras_path": os.path.join(BASE_DIR, "models", "efficientnetb0", "best_model_b0_ft.keras"),
+        "keras_path": os.path.join(BASE_DIR, "models", "efficientnetb0_ferplus", "best_model_b0_ferplus_ft.keras"),
         "img_size": 224,
-        "expected_keras_acc": 68.46, 
+        "expected_keras_acc": 81.89, 
 
     },
     {
         "name": "MobileNetV3Small",
-        "keras_path": os.path.join(BASE_DIR, "models", "mobilenetv3small", "best_model_mobilenetv3small_ft.keras"),
+        "keras_path": os.path.join(BASE_DIR, "models", "mobilenetv3small_ferplus", "best_model_mobilenetv3small_ferplus_ft.keras"),
         "img_size": 224,
-        "expected_keras_acc": 64.99,
+        "expected_keras_acc": 76.13,
     },
 
 ]

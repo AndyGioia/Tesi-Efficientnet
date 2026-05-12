@@ -1,19 +1,25 @@
 FER/
+FERPlus/
 models/
 venv/
 __pycache__/
 *.pyc
+foto.jpg
 
 
 models/*.keras
 FER/
 evaluation_results/
 evaluation_results/
+evaluation_results_all_6/
 .idea/
 .vscode/
+screenshots/
 
 # Modelli TFLite convertiti e SavedModel intermedi
 tflite_models/
+tflite_models_ferplus/
 
 # Risultati valutazione TFLite
 tflite_evaluation/
+tflite_evaluation_ferplus/
